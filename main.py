@@ -271,14 +271,16 @@ def get_args_parser():
     parser.add_argument("--num_workers", default=5, type=int)
 
     # Distributed training parameters
+    parser.add_argument("--distributed", action="store_true", help="Distributed mode")
     parser.add_argument("--world-size", default=1, type=int, help="number of distributed processes")
     parser.add_argument("--dist-url", default="env://", help="url used to set up distributed training")
     return parser
 
 
 def main(args):
-    # Init distributed mode
-    dist.init_distributed_mode(args)
+    if args.distributed:
+        # Init distributed mode
+        dist.init_distributed_mode(args)
 
     # Update dataset specific configs
     if args.dataset_config is not None:
@@ -302,11 +304,14 @@ def main(args):
     output_dir = Path(args.output_dir)
 
     # fix the seed for reproducibility
-    seed = args.seed + dist.get_rank()
+    if args.distributed:
+        seed = args.seed + dist.get_rank()
+    else:
+        seed = args.seed
     torch.manual_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
-    torch.set_deterministic(True)
+    #torch.set_deterministic(True)
 
     # Build the model
     model, criterion, contrastive_criterion, qa_criterion, weight_dict = build_model(args)
@@ -563,16 +568,28 @@ def main(args):
             if (epoch + 1) % args.lr_drop == 0 or (epoch + 1) % 2 == 0:
                 checkpoint_paths.append(output_dir / f"checkpoint{epoch:04}.pth")
             for checkpoint_path in checkpoint_paths:
-                dist.save_on_master(
-                    {
-                        "model": model_without_ddp.state_dict(),
-                        "model_ema": model_ema.state_dict() if args.ema else None,
-                        "optimizer": optimizer.state_dict(),
-                        "epoch": epoch,
-                        "args": args,
-                    },
-                    checkpoint_path,
-                )
+                if args.distributed:
+                    dist.save_on_master(
+                        {
+                            "model": model_without_ddp.state_dict(),
+                            "model_ema": model_ema.state_dict() if args.ema else None,
+                            "optimizer": optimizer.state_dict(),
+                            "epoch": epoch,
+                            "args": args,
+                        },
+                        checkpoint_path,
+                    )
+                else:
+                    torch.save(
+                        {
+                            "model": model_without_ddp.state_dict(),
+                            "model_ema": model_ema.state_dict() if args.ema else None,
+                            "optimizer": optimizer.state_dict(),
+                            "epoch": epoch,
+                            "args": args,
+                        },
+                        checkpoint_path,
+                    )
 
         if epoch % args.eval_skip == 0:
             test_stats = {}
@@ -605,7 +622,7 @@ def main(args):
             "n_parameters": n_parameters,
         }
 
-        if args.output_dir and dist.is_main_process():
+        if args.output_dir and ((not args.distributed) or dist.is_main_process()):
             with (output_dir / "log.txt").open("a") as f:
                 f.write(json.dumps(log_stats) + "\n")
 
@@ -620,15 +637,26 @@ def main(args):
                 checkpoint_paths = [output_dir / "BEST_checkpoint.pth"]
                 # extra checkpoint before LR drop and every 100 epochs
                 for checkpoint_path in checkpoint_paths:
-                    dist.save_on_master(
-                        {
-                            "model": model_without_ddp.state_dict(),
-                            "optimizer": optimizer.state_dict(),
-                            "epoch": epoch,
-                            "args": args,
-                        },
-                        checkpoint_path,
-                    )
+                    if args.distributed:
+                        dist.save_on_master(
+                            {
+                                "model": model_without_ddp.state_dict(),
+                                "optimizer": optimizer.state_dict(),
+                                "epoch": epoch,
+                                "args": args,
+                            },
+                            checkpoint_path,
+                        )
+                    else:
+                        torch.save(
+                            {
+                                "model": model_without_ddp.state_dict(),
+                                "optimizer": optimizer.state_dict(),
+                                "epoch": epoch,
+                                "args": args,
+                            },
+                            checkpoint_path,
+                        )
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))

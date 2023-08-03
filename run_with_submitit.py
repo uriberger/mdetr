@@ -33,6 +33,10 @@ def parse_args():
 
 
 def get_shared_folder(args) -> Path:
+    if args.job_dir is not None:
+        p = Path(args.job_dir)
+        p.mkdir(exist_ok=True)
+        return p        
     user = os.getenv("USER")
     if Path("/checkpoint/").is_dir():
         p = Path(f"/checkpoint/{user}/experiments")

@@ -1,0 +1,3 @@
+#!/bin/sh
+
+venv/bin/python run_with_submitit.py --dataset_config configs/refcoco.json  --batch_size 4  --load https://zenodo.org/record/4721981/files/pretrained_resnet101_checkpoint.pth?download=1  --ngpus 1 --nodes 2 --ema --text_encoder_lr 1e-5 --lr 5e-5 --job_dir /cs/snapless/gabis/uriber/mdetr/job_dir

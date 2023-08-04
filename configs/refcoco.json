@@ -2,7 +2,7 @@
     "combine_datasets": ["refexp"],
     "combine_datasets_val": ["refexp"],
     "refexp_dataset_name": "refcoco",
-    "coco_path": "/cs/labs/oabend/uriber/datasets/COCO/train2014",
+    "coco_path": "/cs/labs/oabend/uriber/datasets/COCO",
     "refexp_ann_path": "mdetr_annotations/",
     "epochs": 5,
     "lr_drop": 3

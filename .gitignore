@@ -20,3 +20,4 @@ flickr/*
 mdetr_annotations/*
 slurm-*.out
 *~
+output/

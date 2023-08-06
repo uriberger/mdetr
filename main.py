@@ -301,6 +301,7 @@ def main(args):
     print(args)
 
     device = torch.device(args.device)
+    print(f'Using output dir {args.output_dir}', flush=True)
     output_dir = Path(args.output_dir)
 
     # fix the seed for reproducibility
@@ -471,6 +472,7 @@ def main(args):
                 model_ema = deepcopy(model_without_ddp)
             else:
                 model_ema.load_state_dict(checkpoint["model_ema"])
+        print(f'Resuming training from {args.resume}, starting at epoch {args.start_epoch}')
 
     def build_evaluator_list(base_ds, dataset_name):
         """Helper function to build the list of evaluators for a given dataset"""
@@ -536,7 +538,7 @@ def main(args):
         return
 
     # Runs training and evaluates after every --eval_skip epochs
-    print("Start training")
+    print(f"Start training, training for {args.epochs} epochs")
     start_time = time.time()
     best_metric = 0.0
     for epoch in range(args.start_epoch, args.epochs):
